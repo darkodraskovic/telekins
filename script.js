@@ -123,7 +123,7 @@ Q.Sprite.extend("Player",{
     	});
 	
 	this.add("2d, animation");
-	this.add("playerMovement, animator");
+	this.add("playerMovement, playerAnimator");
 	this.add("pistol");
 	Q.input.on("fire", this, "shoot");
 	Q.input.on("action", this, "refillAmmo");
@@ -146,6 +146,12 @@ Q.Sprite.extend("Player",{
 
     }
 });
+
+var STAND = 0;
+var LEFT = 1;
+var RIGHT = 2;
+var UP = 3;
+var DOWN = 4;
 
 Q.component("playerMovement", {
     defaults: {speed: 100,
@@ -192,7 +198,7 @@ Q.component("playerMovement", {
     }
 });
 
-Q.component("animator", {
+Q.component("playerAnimator", {
     extend : {
 	// set the ANIMATION
 	animate: function() {
@@ -351,89 +357,143 @@ Q.Sprite.extend("Enemy", {
 	    points: cCollisionPolygon
 	});
 
-	this.add("2d, animation, enemyMovement, aiBounce");
-	this.on("hit", this, "collision");
+	this.add("2d, animation");
+	this.add("enemyMovement, enemyCollision, enemyAnimator");
+	this.on("hit", this, "collide");
     },
 
-    collision: function(col) {
-	if (col.obj.isA("Bullet")) {
-	    console.log("Hit");
-	    col.obj.destroy();
-	}
+
+    step: function(dt) {
+	this.animate();
     }
 
 });
 
+
 // enemy movement
 Q.component("enemyMovement", {
-    defaults : {speed: 100, minSpeed: 20, direction: "right"},
+    defaults : {speed: 100, 
+		movLR: STAND, movUD: STAND, 
+		facing: RIGHT 
+	       },
 
     added: function() {
 	var p = this.entity.p;
 	Q._defaults(p, this.defaults);
-	p.vx = Math.ceil(Math.random() * p.speed + p.minSpeed);
-	p.vy = Math.ceil(Math.random() * p.speed + p.minSpeed);
 	this.entity.on("step", this, "step");
     },
 
     step: function(dt) {
 	var p = this.entity.p;
-	var e = this.entity;
 
 	this.randomWalk();
+	console.log(p.facing);
 
-	// calculate DIRECTION
-	if (p.vx > 0) {
-	    p.direction = "right";
-	} else if (p.vx < 0){
-	    p.direction = "left";
-	} else if (p.vy < 0){
-	    p.direction = "up";
-	} else if (p.vy > 0){
-	    p.direction = "down";
-	}
-	
-	// set ANIMATION
-	if (p.vx == 0 && p.vy == 0) {
-	    if (p.direction == "right")
-		this.entity.play("stand_right");
-	    if (p.direction == "left")
-		this.entity.play("stand_left");
-	    if (p.direction == "down")
-		this.entity.play("stand_down");
-	    if (p.direction == "up")
-		this.entity.play("stand_up");
-	} else {
-	    if (p.direction == "right")
-		this.entity.play("walk_right");
-	    if (p.direction == "left")
-		this.entity.play("walk_left");
-	    if (p.direction == "down")
-		this.entity.play("walk_down");
-	    if (p.direction == "up")
-		this.entity.play("walk_up");
-	}
+	// set the SPEED on the basis of the movingDir; Quintus figures out the position
+	if (p.movLR == LEFT) p.vx = -p.speed;
+	else if (p.movLR == RIGHT) p.vx = p.speed;
+	else p.vx = 0;
+
+	if (p.movUD == UP) p.vy = -p.speed;
+	else if (p.movUD == DOWN) p.vy = p.speed;
+	else p.vy = 0;
+
 
     },
 
     randomWalk: function() {
 	var p = this.entity.p;
 	switch(Math.ceil(Math.random() * 312)) {
-	case 1: p.vx = -p.vx; break;
-	case 2: p.vy = -p.vy; break;
-	case 3: p.vx = 0; break;
-	case 4: p.vy = 0; break;
-	case 5: p.vx = Math.ceil(Math.random() * p.speed + p.minSpeed); break;
-	case 6: p.vy = Math.ceil(Math.random() * p.speed + p.minSpeed); break;
-	case 7: p.vx = -Math.ceil(Math.random() * p.speed + p.minSpeed); break;
-	case 8: p.vy = -Math.ceil(Math.random() * p.speed + p.minSpeed); break;
+	case 1:
+	    if(p.movLR == LEFT) {p.facing = RIGHT; p.movLR = RIGHT;}
+	    else if (p.movLR == RIGHT) {p.facing = LEFT; p.movLR = LEFT;};
+	    break;
+	case 2:
+	    if(p.movUD == UP) {p.facing = DOWN; p.movUD = DOWN;}
+	    else if (p.movUD == DOWN) {p.facing = UP; p.movUD = UP;}
+	    break;
+
+	case 3: p.movLR = STAND;
+	    if (p.movUD == UP)
+		p.facing = UP;
+	    else if (p.movUD == DOWN)
+		p.facing = DOWN;
+	    break;
+	case 4: p.movUD = STAND;
+	    if (p.movLR == LEFT)
+		p.facing = LEFT;
+	    else if (p.movLR == RIGHT)
+		p.facing = RIGHT;
+	    break;
+
+	case 5: p.facing = LEFT; p.movLR = LEFT; break;
+	case 6: p.facing = RIGHT; p.movLR = RIGHT; break;
+	case 7: p.facing = UP; p.movUD = UP; break;
+	case 8: p.facing = DOWN; p.movUD = DOWN; break;
+
 	default: break;
 	}
     }
     
 });
 
+Q.component("enemyAnimator", {
+    extend: {
+	animate: function() {
+	    if (this.p.movLR == STAND && this.p.movUD == STAND) {
+		switch(this.p.facing)  {
+		case LEFT: this.play("stand_left");
+		    break;
+		case RIGHT: this.play("stand_right");
+		    break;
+		case UP: this.play("stand_up");
+		    break;
+		case DOWN: this.play("stand_down");
+		    break;
+		}
+	    } else {
+		if (this.p.movLR == LEFT) this.play("walk_left");
+		else if (this.p.movLR == RIGHT) this.play("walk_right");
+		else if (this.p.movUD == UP) this.play("walk_up");
+		else if (this.p.movUD == DOWN) this.play("walk_down");
+	    }	    
+	}
+    }
+});
 
+Q.component("enemyCollision", {
+    extend: {
+	collide: function(col) {
+	    if (col.obj.isA("Bullet")) {
+		console.log("Bullet hit");
+		col.obj.destroy();
+	    }
+	    if (col.obj.p.type == SPRITE_TILE | SPRITE_PLAYER) {
+		console.log("Tile hit");
+		if (col.normalX) {
+		    if (this.p.movLR == LEFT) {
+			this.p.facing = RIGHT;
+			this.p.movLR = RIGHT; 
+		    }
+		    else {
+			this.p.facing = LEFT;
+			this.p.movLR = LEFT;
+		    }
+		}
+		if (col.normalY) {
+		    if (this.p.movUD == UP) {
+			this.p.facing = DOWN;
+			this.p.movUD = DOWN;
+		    }
+		    else {
+			this.p.facing = UP;
+			this.p.movUD = UP;
+		    }
+		}
+	    }
+	}	
+    }
+});
 
 
 
