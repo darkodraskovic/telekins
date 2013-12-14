@@ -123,7 +123,7 @@ Q.Sprite.extend("Player",{
     	});
 	
 	this.add("2d, animation");
-	this.add("playerMovement, playerAnimator");
+	this.add("playerMovement, animator");
 	this.add("pistol");
 	Q.input.on("fire", this, "shoot");
 	Q.input.on("action", this, "refillAmmo");
@@ -155,8 +155,8 @@ var DOWN = 4;
 
 Q.component("playerMovement", {
     defaults: {speed: 100,
-	       movingLeft: false, movingRight: false, movingUp: false, movingDown: false,
-	       facing: "right"},
+	       movLR: STAND, movUD: STAND,
+	       facing: RIGHT},
 
     added: function() {
 	var p = this.entity.p;
@@ -169,73 +169,57 @@ Q.component("playerMovement", {
 
 	// determine the MOVING DIR and the FACING DIR
 	if (Q.inputs["up"] && !Q.inputs["down"]) {
-	    p.facing = "up";
-	    p.movingUp = true;
+	    p.facing = UP;
+	    p.movUD = UP;
 	} else if (Q.inputs["down"] && !Q.inputs["up"]) {
-	    p.facing = "down";
-	    p.movingDown = true;
-	} else p.movingUp = p.movingDown = false;
+	    p.facing = DOWN;
+	    p.movUD = DOWN;
+	} else p.movUD = STAND;
 
 	if (Q.inputs["left"] && !Q.inputs["right"]) {
-	    p.facing = "left";
-	    p.movingLeft = true;
+	    p.facing = LEFT;
+	    p.movLR = LEFT;
 	}
 	else if (Q.inputs["right"] && !Q.inputs["left"]) {
-	    p.facing = "right";
-	    p.movingRight = true;
-	} else p.movingLeft = p.movingRight = false;
+	    p.facing = RIGHT;
+	    p.movLR = RIGHT;
+	} else p.movLR = STAND;
 
 
 	// set the SPEED on the basis of the movingDir; Quintus figures out the position
-	if (p.movingLeft) p.vx = -p.speed;
-	else if (p.movingRight) p.vx = p.speed;
+	if (p.movLR == LEFT) p.vx = -p.speed;
+	else if (p.movLR == RIGHT) p.vx = p.speed;
 	else p.vx = 0;
-	if (p.movingUp) p.vy = -p.speed;
-	else if (p.movingDown) p.vy = p.speed;
+	if (p.movUD == UP) p.vy = -p.speed;
+	else if (p.movUD == DOWN) p.vy = p.speed;
 	else p.vy = 0;
 	
 
     }
 });
 
-Q.component("playerAnimator", {
-    extend : {
-	// set the ANIMATION
+Q.component("animator", {
+    extend: {
 	animate: function() {
-	    if (!(this.p.movingLeft || this.p.movingRight || this.p.movingUp || this.p.movingDown)) {
-		switch(this.p.facing) {
-		case "left":
-		    this.play("stand_left");
+	    if (this.p.movLR == STAND && this.p.movUD == STAND) {
+		switch(this.p.facing)  {
+		case LEFT: this.play("stand_left");
 		    break;
-		case "right":
-		    this.play("stand_right");
+		case RIGHT: this.play("stand_right");
 		    break;
-		case "up":
-		    this.play("stand_up");
+		case UP: this.play("stand_up");
 		    break;
-		case "down":
-		    this.play("stand_down");
+		case DOWN: this.play("stand_down");
 		    break;
 		}
 	    } else {
-		switch(this.p.facing) {
-		case "left":
-		    this.play("walk_left");
-		    break;
-		case "right":
-		    this.play("walk_right");
-		    break;
-		case "up":
-		    this.play("walk_up");
-		    break;
-		case "down":
-		    this.play("walk_down");
-		    break;
-		}
-
-	    }
+		if (this.p.movLR == LEFT) this.play("walk_left");
+		else if (this.p.movLR == RIGHT) this.play("walk_right");
+		else if (this.p.movUD == UP) this.play("walk_up");
+		else if (this.p.movUD == DOWN) this.play("walk_down");
+	    }	    
 	}
-    }	
+    }
 });
 
 
@@ -358,12 +342,14 @@ Q.Sprite.extend("Enemy", {
 	});
 
 	this.add("2d, animation");
-	this.add("enemyMovement, enemyCollision, enemyAnimator");
+	this.add("enemyMovement, enemyCollider, animator");
+	this.add("randomWalker");
 	this.on("hit", this, "collide");
     },
 
 
     step: function(dt) {
+	this.randomWalk();
 	this.animate();
     }
 
@@ -386,9 +372,6 @@ Q.component("enemyMovement", {
     step: function(dt) {
 	var p = this.entity.p;
 
-	this.randomWalk();
-	console.log(p.facing);
-
 	// set the SPEED on the basis of the movingDir; Quintus figures out the position
 	if (p.movLR == LEFT) p.vx = -p.speed;
 	else if (p.movLR == RIGHT) p.vx = p.speed;
@@ -399,69 +382,50 @@ Q.component("enemyMovement", {
 	else p.vy = 0;
 
 
-    },
-
-    randomWalk: function() {
-	var p = this.entity.p;
-	switch(Math.ceil(Math.random() * 312)) {
-	case 1:
-	    if(p.movLR == LEFT) {p.facing = RIGHT; p.movLR = RIGHT;}
-	    else if (p.movLR == RIGHT) {p.facing = LEFT; p.movLR = LEFT;};
-	    break;
-	case 2:
-	    if(p.movUD == UP) {p.facing = DOWN; p.movUD = DOWN;}
-	    else if (p.movUD == DOWN) {p.facing = UP; p.movUD = UP;}
-	    break;
-
-	case 3: p.movLR = STAND;
-	    if (p.movUD == UP)
-		p.facing = UP;
-	    else if (p.movUD == DOWN)
-		p.facing = DOWN;
-	    break;
-	case 4: p.movUD = STAND;
-	    if (p.movLR == LEFT)
-		p.facing = LEFT;
-	    else if (p.movLR == RIGHT)
-		p.facing = RIGHT;
-	    break;
-
-	case 5: p.facing = LEFT; p.movLR = LEFT; break;
-	case 6: p.facing = RIGHT; p.movLR = RIGHT; break;
-	case 7: p.facing = UP; p.movUD = UP; break;
-	case 8: p.facing = DOWN; p.movUD = DOWN; break;
-
-	default: break;
-	}
-    }
-    
+    }    
 });
 
-Q.component("enemyAnimator", {
+Q.component("randomWalker", {
     extend: {
-	animate: function() {
-	    if (this.p.movLR == STAND && this.p.movUD == STAND) {
-		switch(this.p.facing)  {
-		case LEFT: this.play("stand_left");
-		    break;
-		case RIGHT: this.play("stand_right");
-		    break;
-		case UP: this.play("stand_up");
-		    break;
-		case DOWN: this.play("stand_down");
-		    break;
-		}
-	    } else {
-		if (this.p.movLR == LEFT) this.play("walk_left");
-		else if (this.p.movLR == RIGHT) this.play("walk_right");
-		else if (this.p.movUD == UP) this.play("walk_up");
-		else if (this.p.movUD == DOWN) this.play("walk_down");
-	    }	    
+	randomWalk: function() {
+	    var p = this.p;
+	    switch(Math.ceil(Math.random() * 312)) {
+	    case 1:
+		if(p.movLR == LEFT) {p.facing = RIGHT; p.movLR = RIGHT;}
+		else if (p.movLR == RIGHT) {p.facing = LEFT; p.movLR = LEFT;};
+		break;
+	    case 2:
+		if(p.movUD == UP) {p.facing = DOWN; p.movUD = DOWN;}
+		else if (p.movUD == DOWN) {p.facing = UP; p.movUD = UP;}
+		break;
+
+	    case 3: p.movLR = STAND;
+		if (p.movUD == UP)
+		    p.facing = UP;
+		else if (p.movUD == DOWN)
+		    p.facing = DOWN;
+		break;
+	    case 4: p.movUD = STAND;
+		if (p.movLR == LEFT)
+		    p.facing = LEFT;
+		else if (p.movLR == RIGHT)
+		    p.facing = RIGHT;
+		break;
+
+	    case 5: p.facing = LEFT; p.movLR = LEFT; break;
+	    case 6: p.facing = RIGHT; p.movLR = RIGHT; break;
+	    case 7: p.facing = UP; p.movUD = UP; break;
+	    case 8: p.facing = DOWN; p.movUD = DOWN; break;
+
+	    case 9: p.movLR = p.movUD = STAND; break;
+
+	    default: break;
+	    }
 	}
     }
 });
 
-Q.component("enemyCollision", {
+Q.component("enemyCollider", {
     extend: {
 	collide: function(col) {
 	    if (col.obj.isA("Bullet")) {
@@ -494,12 +458,3 @@ Q.component("enemyCollision", {
 	}	
     }
 });
-
-
-
-
-
-
-
-
-
