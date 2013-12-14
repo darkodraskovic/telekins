@@ -122,7 +122,8 @@ Q.Sprite.extend("Player",{
 	    points: cCollisionPolygon
     	});
 	
-	this.add("2d, playerControls, animation");
+	this.add("2d, animation");
+	this.add("playerMovement, animator");
 	this.add("pistol");
 	Q.input.on("fire", this, "shoot");
 	Q.input.on("action", this, "refillAmmo");
@@ -141,12 +142,15 @@ Q.Sprite.extend("Player",{
         // Tell the stage to run collisions on this sprite
 	// this.stage.collide(this);
 	// console.log(this.has("pistol"));
+	this.animate();
 
     }
 });
 
-Q.component("playerControls", {
-    defaults: {speed: 100, direction: "right"},
+Q.component("playerMovement", {
+    defaults: {speed: 100,
+	       movingLeft: false, movingRight: false, movingUp: false, movingDown: false,
+	       facing: "right"},
 
     added: function() {
 	var p = this.entity.p;
@@ -157,61 +161,81 @@ Q.component("playerControls", {
     step: function(dt) {
 	var p = this.entity.p;
 
-	// calculate MOVEMENT
-	if (!(Q.inputs["left"] || Q.inputs["right"])) {
-	    p.vx = 0;
-	} else {
-	    if (Q.inputs["left"]) {
-		p.direction = "left";
-		p.vx = -p.speed;
-	    }
-	    else if (Q.inputs["right"]) {
-		p.direction = "right";
-		p.vx = p.speed;
-	    }
+	// determine the MOVING DIR and the FACING DIR
+	if (Q.inputs["up"] && !Q.inputs["down"]) {
+	    p.facing = "up";
+	    p.movingUp = true;
+	} else if (Q.inputs["down"] && !Q.inputs["up"]) {
+	    p.facing = "down";
+	    p.movingDown = true;
+	} else p.movingUp = p.movingDown = false;
 
+	if (Q.inputs["left"] && !Q.inputs["right"]) {
+	    p.facing = "left";
+	    p.movingLeft = true;
 	}
-	if (!(Q.inputs["up"] || Q.inputs["down"])) {
-	    p.vy = 0;
-	} else {
-	    if (Q.inputs["up"]) {
-		p.direction = "up";
-		p.vy = -p.speed;
-	    }
-	    else if (Q.inputs["down"]) {
-		p.direction = "down";
-		p.vy = p.speed;
-	    }
-	}
+	else if (Q.inputs["right"] && !Q.inputs["left"]) {
+	    p.facing = "right";
+	    p.movingRight = true;
+	} else p.movingLeft = p.movingRight = false;
 
-	// set ANIMATION
-	if (p.vx == 0 && p.vy == 0) {
-	    if (p.direction == "right")
-		this.entity.play("stand_right");
-	    if (p.direction == "left")
-		this.entity.play("stand_left");
-	    if (p.direction == "down")
-		this.entity.play("stand_down");
-	    if (p.direction == "up")
-		this.entity.play("stand_up");
-	} else {
-	    if (p.direction == "right")
-		this.entity.play("walk_right");
-	    if (p.direction == "left")
-		this.entity.play("walk_left");
-	    if (p.direction == "down")
-		this.entity.play("walk_down");
-	    if (p.direction == "up")
-		this.entity.play("walk_up");
-	}
+
+	// set the SPEED on the basis of the movingDir; Quintus figures out the position
+	if (p.movingLeft) p.vx = -p.speed;
+	else if (p.movingRight) p.vx = p.speed;
+	else p.vx = 0;
+	if (p.movingUp) p.vy = -p.speed;
+	else if (p.movingDown) p.vy = p.speed;
+	else p.vy = 0;
+	
 
     }
 });
 
+Q.component("animator", {
+    extend : {
+	// set the ANIMATION
+	animate: function() {
+	    if (!(this.p.movingLeft || this.p.movingRight || this.p.movingUp || this.p.movingDown)) {
+		switch(this.p.facing) {
+		case "left":
+		    this.play("stand_left");
+		    break;
+		case "right":
+		    this.play("stand_right");
+		    break;
+		case "up":
+		    this.play("stand_up");
+		    break;
+		case "down":
+		    this.play("stand_down");
+		    break;
+		}
+	    } else {
+		switch(this.p.facing) {
+		case "left":
+		    this.play("walk_left");
+		    break;
+		case "right":
+		    this.play("walk_right");
+		    break;
+		case "up":
+		    this.play("walk_up");
+		    break;
+		case "down":
+		    this.play("walk_down");
+		    break;
+		}
+
+	    }
+	}
+    }	
+});
+
+
 Q.Sprite.extend("Bullet",{
     init: function(p) {
 	this._super(p, {    		   
-//            sprite: "redBullet",
             sheet: "bullets",
 	    frame: 19,
 	    type: SPRITE_BULLET, 
@@ -281,7 +305,7 @@ Q.component("pistol", {
 			
 		    }
 		} else {
-		    switch(this.p.direction) {
+		    switch(this.p.facing) {
 		    case "left": bullet.p.vx = -bullet.p.speed;
 			bullet.p.angle = 90;
 			break;	   
