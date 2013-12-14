@@ -229,14 +229,22 @@ Q.Sprite.extend("Bullet",{
             sheet: "bullets",
 	    frame: 19,
 	    type: SPRITE_BULLET, 
-      	    collisionMask: SPRITE_ENEMY,
+      	    collisionMask: SPRITE_TILE,
             damage: 5,
 	    speed: 300,
 	    points: bulletCollisionPolygon
     	});
 
 	this.add("2d, animation");
+	this.on("hit", this, "collision");
+    },
 
+    collision: function(col) {
+	this.destroy();
+    },
+
+    step: function(dt) {
+	
     }
 }); 
 
@@ -337,7 +345,7 @@ Q.Sprite.extend("Enemy", {
 	    sprite: "walk",
 //	    frame: 18,
 	    type: SPRITE_ENEMY,
-	    collisionMask: SPRITE_TILE | SPRITE_PLAYER,
+	    collisionMask: SPRITE_TILE | SPRITE_PLAYER | SPRITE_BULLET,
 	    points: cCollisionPolygon
 	});
 
@@ -430,7 +438,6 @@ Q.component("enemyCollider", {
 	collide: function(col) {
 	    if (col.obj.isA("Bullet")) {
 		console.log("Bullet hit");
-		col.obj.destroy();
 	    }
 	    if (col.obj.p.type == SPRITE_TILE || col.obj.p.type == SPRITE_PLAYER) {
 		console.log("Tile/Player hit");
