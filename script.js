@@ -296,18 +296,18 @@ Q.component("pistol", {
 		    }
 		} else {
 		    switch(this.p.facing) {
-		    case "left": bullet.p.vx = -bullet.p.speed;
+		    case LEFT: bullet.p.vx = -bullet.p.speed;
 			bullet.p.angle = 90;
 			break;	   
 			
-		    case "right": bullet.p.vx = bullet.p.speed;
+		    case RIGHT: bullet.p.vx = bullet.p.speed;
 			bullet.p.angle = -90;
 			break;
 			
-		    case "up": bullet.p.vy = -bullet.p.speed;
+		    case UP: bullet.p.vy = -bullet.p.speed;
 			break;	   
 
-		    case "down": bullet.p.vy = bullet.p.speed;
+		    case DOWN: bullet.p.vy = bullet.p.speed;
 			break;	   
 			
 		    default:
@@ -432,8 +432,8 @@ Q.component("enemyCollider", {
 		console.log("Bullet hit");
 		col.obj.destroy();
 	    }
-	    if (col.obj.p.type == SPRITE_TILE | SPRITE_PLAYER) {
-		console.log("Tile hit");
+	    if (col.obj.p.type == SPRITE_TILE || col.obj.p.type == SPRITE_PLAYER) {
+		console.log("Tile/Player hit");
 		if (col.normalX) {
 		    if (this.p.movLR == LEFT) {
 			this.p.facing = RIGHT;
